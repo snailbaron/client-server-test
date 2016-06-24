@@ -1,0 +1,2 @@
+abcdef&&&name1.txt
+defabc&&&name2.txt
