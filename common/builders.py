@@ -9,12 +9,16 @@ class BaseDataBuilder:
         self.content_type = content_type
         self.data = []
         
-        # Assume that data is iterable, and each piece of it contains
-        # valid info
         if data:
-            for d in data:
-                # TODO: Check that each data piece is valid
-                self.data.append({md5: d['md5'], name: d['name']})
+            self.read(data)
+                
+    def fill(self, data):
+        for d in data:
+            # TODO: Check that each data piece is valid
+            self.data.append({'md5': d['md5'], 'name': d['name']})
+            
+    def clear(self):
+        self.data = []
         
     def add(self, md5, name):
         self.data.append({'md5': md5, 'name': name})
@@ -22,24 +26,24 @@ class BaseDataBuilder:
     def get_content_type(self):
         return self.content_type
         
+        
 #
 # Builder for XML data
 #
 class XmlDataBuilder(BaseDataBuilder):
-    def __init__(self):
-        BaseDataBuilder.__init__(self, 'application/xml')
-        
     def __init__(self, xml=None):
+        BaseDataBuilder.__init__(self, 'application/xml')
+        if xml:
+            self.read(xml)    
+        
+    def read(self, xml):
         data = []
-
-        if xml:    
-            root = ET.fromstring(xml)
-            for d in root.findall('data'):
-                md5_text = d.find('md5').text
-                name_text = d.find('name').text
-                data.append({'md5': md5_text, 'name': name_text})
-                
-        BaseDataBuilder.__init__(self, 'application/xml', data)
+        root = ET.fromstring(xml)
+        for d in root.findall('data'):
+            md5_text = d.find('md5').text
+            name_text = d.find('name').text
+            data.append({'md5': md5_text, 'name': name_text})
+        BaseDataBuilder.fill(self, data)
         
     def to_string(self):
         root = ET.Element('root')
@@ -56,10 +60,13 @@ class XmlDataBuilder(BaseDataBuilder):
 #
 class JsonDataBuilder(BaseDataBuilder):
     def __init__(self, json=None):
-        data = None
+        BaseDataBuilder.__init__(self, 'application/json')    
         if json:
-            data = json.loads(json)
-        BaseDataBuilder.__init__(self, 'application/json', data)
+            self.read(json)
+        
+    def read(self, json):
+        data = json.loads(json)
+        BaseDataBuilder.fill(self, data)
         
     def to_string(self):
         root = []

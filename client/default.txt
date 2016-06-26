@@ -1,2 +1,18 @@
-abcdef&&&name1.txt
-defabc&&&name2.txt
+Lines not matching the pattern <md5>&&&<string> are ignored.
+
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&&&string_aaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&&&string_bbb
+
+Any text may be inserted between requests.
+
+Directly before them:
+cccccccccccccccccccccccccccccccc&&&string_ccc
+Or directly after them.
+
+Lines below contain invalid requests. They are also ignored.
+
+This line contains invalid symbols in MD5 (not hex digits):
+thisstringmaylooklikemd5butisnot&&&string_invalid_md5
+
+MD5 in this line is too short:
+tooshort&&&string_too_short

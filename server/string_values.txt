@@ -1,0 +1,3 @@
+string_aaa:value_aaa
+string_ccc:value_ccc
+string_something:value_something

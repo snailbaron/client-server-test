@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import json
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.join('..', 'common')))
-import data
+import builders
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -36,14 +36,14 @@ logging.info('  Request format : {0}'.format(args.format))
 logging.info('  Data file      : {0}'.format(args.data))
 
 if (args.format == 'xml'):
-    builder = data.XmlDataBuilder()
+    builder = builders.XmlDataBuilder()
 elif (args.format == 'json'):
-    builder = data.JsonDataBuilder()
+    builder = builders.JsonDataBuilder()
 
 # Read data file
 with open(args.data) as f:
     for line in f:
-        m = re.match(r'^(.*)&&&(.*)$', line)
+        m = re.match(r'^([0-9a-f]{32})&&&(.*)$', line)
         if m:
             logging.info("Adding to request: {0} : {1}".format(m.group(1), m.group(2)))
             builder.add(m.group(1), m.group(2))
@@ -54,9 +54,17 @@ headers = {
 
 logging.info("sending request:\n{0}".format(builder.to_string()))
 
-con = httplib.HTTPConnection(args.ip)
+con = httplib.HTTPConnection(args.ip, args.port)
 con.request('POST', '', builder.to_string(), headers)
 r = con.getresponse()
 
-logging.info('status: {0}'.format(r.status))
-logging.info('reason: {0}'.format(r.reason))
+logging.info('response: {0} ({1})'.format(r.status, r.reason))
+
+print 'Response headers: ', r.getheaders()
+resp_data = r.read()
+
+builder.clear()
+builder.read(resp_data)
+
+for d in builder.data:
+    print "  MD5: {} String: {}".format(d['md5'], d['name'])
