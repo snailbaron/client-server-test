@@ -1,30 +1,11 @@
-import argparse, re, httplib
+import sys, os, argparse, re, httplib, logging
 import xml.etree.ElementTree as ET
 import json
 
-class XmlDataBuilder:
-    def __init__(self):
-        self.root = ET.Element('root')
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.join('..', 'common')))
+import data
 
-    def add(self, md5, name):
-        data_el = ET.SubElement(self.root, 'data')
-        md5_el = ET.SubElement(data_el, 'md5')
-        md5_el.text = md5
-        name_el = ET.SubElement(data_el, 'name')
-        name_el.text = name
-
-    def __str__(self):
-        return ET.tostring(self.root)
-
-class JsonDataBuilder:
-    def __init__(self):
-        self.root = []
-
-    def add(self, md5, name):
-        self.root.append({'md5': md5, 'name': name})
-
-    def __str__(self):
-        return json.dumps(self.root)
+logging.basicConfig(level=logging.DEBUG)
 
 # Argument check: IP address
 def arg_check_ip(ip_string):
@@ -49,19 +30,33 @@ parser.add_argument('--data', metavar='FILE', default='default.txt',
 # Parse command line
 args = parser.parse_args()
 
+logging.info('Running client')
+logging.info('  Server         : {0}:{1}'.format(args.ip, args.port))
+logging.info('  Request format : {0}'.format(args.format))
+logging.info('  Data file      : {0}'.format(args.data))
+
 if (args.format == 'xml'):
-    builder = XmlDataBuilder()
+    builder = data.XmlDataBuilder()
 elif (args.format == 'json'):
-    builder = JsonDataBuilder()
+    builder = data.JsonDataBuilder()
 
 # Read data file
 with open(args.data) as f:
     for line in f:
         m = re.match(r'^(.*)&&&(.*)$', line)
         if m:
+            logging.info("Adding to request: {0} : {1}".format(m.group(1), m.group(2)))
             builder.add(m.group(1), m.group(2))
 
+headers = {
+    'Content-Type': builder.get_content_type()
+}
+
+logging.info("sending request:\n{0}".format(builder.to_string()))
+
 con = httplib.HTTPConnection(args.ip)
-con.request('POST', '/')
+con.request('POST', '', builder.to_string(), headers)
 r = con.getresponse()
-print r.status, r.reason
+
+logging.info('status: {0}'.format(r.status))
+logging.info('reason: {0}'.format(r.reason))
