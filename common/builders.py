@@ -2,7 +2,16 @@ import xml.etree.ElementTree as ET
 import json
 
 #
-# Basic class for working with data sent to or received by server
+# Basic class for working with data sent to or received by server.
+#
+# Data is stored in a list of hashes in the form:
+#   [
+#     { 'md5': <md5 value>, 'name': <string value> },
+#     ...
+#   ]
+#
+# Additionally, Content-Type can be provided, which helps to construct HTTP
+# requests using contained data.
 #
 class BaseDataBuilder:
     def __init__(self, content_type=None, data=None):
@@ -12,11 +21,13 @@ class BaseDataBuilder:
         if data:
             self.read(data)
                 
+    # Fill object's data using provided list of hashes    
     def fill(self, data):
         for d in data:
-            # TODO: Check that each data piece is valid
             self.data.append({'md5': d['md5'], 'name': d['name']})
             
+    # Remove all data contained in the object. Useful when re-using the object,
+    # to save the existing Content-Type.
     def clear(self):
         self.data = []
         
@@ -36,6 +47,7 @@ class XmlDataBuilder(BaseDataBuilder):
         if xml:
             self.read(xml)    
         
+    # Read an XML string, converting it to a list of hashes
     def read(self, xml):
         data = []
         root = ET.fromstring(xml)
@@ -45,6 +57,7 @@ class XmlDataBuilder(BaseDataBuilder):
             data.append({'md5': md5_text, 'name': name_text})
         BaseDataBuilder.fill(self, data)
         
+    # Generate an XML string from stored data
     def to_string(self):
         root = ET.Element('root')
         for d in self.data:
@@ -64,10 +77,12 @@ class JsonDataBuilder(BaseDataBuilder):
         if json:
             self.read(json)
         
+    # Read a JSON string, converting it to a list of hashes
     def read(self, json):
         data = json.loads(json)
         BaseDataBuilder.fill(self, data)
         
+    # Generate a JSON string from stored data
     def to_string(self):
         root = []
         for d in self.data:
