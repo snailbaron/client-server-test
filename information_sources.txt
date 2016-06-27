@@ -1,0 +1,14 @@
+Источники информации
+--------------------
+
+Документация Python 2.7:
+* argparse (Для обработки аргументов командной строки клиента)
+* logging (Для логирования/отладки клиента и сервера)
+* httplib (Для общения с сервером на стороне клиента: HTTPConnection,
+  HTTPRequest, HTTPResponse)
+* BaseHTTPServer, SimpleHTTPServer, CGIHTTPServer (Для обработки HTTP-запросов
+  на стороне сервера; в коде используется CGIHTTPServer.CGIHTTPRequestHandler
+  с перегруженным do_POST())
+  
+StackOverflow и подобные ресурсы. В основном для примеров отправки/обработки
+HTTP-запросов.
