@@ -2,6 +2,9 @@ import sys, os, argparse, re, httplib, logging
 import xml.etree.ElementTree as ET
 import json
 
+import urllib2
+from threading import Thread
+
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.join('..', 'common')))
 import builders
 
@@ -60,6 +63,16 @@ r = con.getresponse()
 
 logging.info('response: {0} ({1})'.format(r.status, r.reason))
 
+def make_request():
+    con = httplib.HTTPConnection(args.ip, args.port)
+    con.request('POST', '', builder.to_string(), headers)
+    print con.getresponse()
+
+print 'Now stress testing'
+for _ in range(10):
+    Thread(target=make_request).start()
+print 'Done'
+
 print 'Response headers: ', r.getheaders()
 resp_data = r.read()
 
@@ -68,3 +81,5 @@ builder.read(resp_data)
 
 for d in builder.data:
     print "  MD5: {} String: {}".format(d['md5'], d['name'])
+
+

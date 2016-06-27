@@ -1,4 +1,4 @@
-import sys, os, logging, re, httplib, ConfigParser, CGIHTTPServer, SocketServer
+import sys, os, logging, re, time, httplib, ConfigParser, CGIHTTPServer, SocketServer
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.join('..', 'common')))
 import builders
@@ -8,23 +8,25 @@ class Handler(CGIHTTPServer.CGIHTTPRequestHandler):
         CGIHTTPServer.CGIHTTPRequestHandler.__init__(self, request, client_address, server)
         
     def do_GET(self):
-        print 'I got a GET'
+        logging.debug('I got a GET')
 
     def do_POST(self):
-        print 'I got a POST'
+        logging.debug('I got a POST')
+
+        time.sleep(1)
         
         content_type = self.headers['Content-Type']
         
         logging.info('Headers')
-        print self.headers
+        logging.info('{}'.format(self.headers))
         
         logging.info('Content type: {}'.format(content_type))
         
         content_length = int(self.headers['Content-Length'])
-        print 'Len: ', content_length
+        logging.debug('Len: {}'.format(content_length))
         
         data = self.rfile.read(content_length)
-        print 'Data: ', data
+        logging.debug('Data: {}'.format(data))
         
         if content_type == 'application/xml':
             builder = builders.XmlDataBuilder(data)
@@ -40,14 +42,14 @@ class Handler(CGIHTTPServer.CGIHTTPRequestHandler):
             
             with open(md5_file, 'r') as f_md5:
                 for md5_line in f_md5:
-                    print 'MD5 line: ', md5_line
+                    logging.debug('MD5 line: {}'.format(md5_line))
                     m = re.match(r'^(.*):(.*)$', md5_line)
                     if m:
-                        print 'Match'
-                        print 'Key: ', m.group(1)
-                        print 'What we have: ', d['md5']
+                        logging.debug('Match')
+                        logging.debug('Key: {}'.format(m.group(1)))
+                        logging.debug('What we have: {}'.format(d['md5']))
                         if m.group(1) == d['md5']:
-                            print 'Key matches'
+                            logging.debug('Key matches')
                             r['md5'] = m.group(2)
                     
             with open(string_file, 'r') as f_str:
@@ -66,12 +68,15 @@ class Handler(CGIHTTPServer.CGIHTTPRequestHandler):
         self.send_header('Content-Type', content_type)
         self.end_headers()
         
-        print 'Writing: ', builder.to_string()
+        logging.info('Writing: {}'.format(builder.to_string()))
         
         self.wfile.write(builder.to_string())
 
+class ThreadedServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 config = ConfigParser.RawConfigParser()
 config.read('server.cfg')
@@ -80,7 +85,8 @@ port = config.getint('core', 'port')
 md5_file = config.get('core', 'md5_file')
 string_file = config.get('core', 'string_file')
 
-server = SocketServer.TCPServer(('', port), Handler)
+#server = SocketServer.TCPServer(('', port), Handler)
+server = ThreadedServer(('', port), Handler)
 
 print "Serving at port:", port
 server.serve_forever()
