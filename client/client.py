@@ -1,4 +1,4 @@
-import sys, os, argparse, re, httplib, logging
+import sys, os, argparse, re, httplib, logging, socket
 import xml.etree.ElementTree as ET
 import json
 
@@ -44,28 +44,40 @@ elif (args.format == 'json'):
     builder = builders.JsonDataBuilder()
 
 # Read data file
-with open(args.data) as f:
-    for line in f:
-        m = re.match(r'^([0-9a-f]{32})&&&(.*)$', line)
-        if m:
-            logging.info("Adding to request: MD5={} : name={}".format(m.group(1), m.group(2)))
-            builder.add(m.group(1), m.group(2))
+try:
+    with open(args.data) as f:
+        for line in f:
+            m = re.match(r'^([0-9a-f]{32})&&&(.*)$', line)
+            if m:
+                logging.info("Adding to request: MD5={} : name={}".format(m.group(1), m.group(2)))
+                builder.add(m.group(1), m.group(2))
+except IOError, e:
+    logging.error('Cannot read input data file ({}): {}'.format(e.errno, e.strerror))
+    exit(1)
 
 # Set request headers (Content-Type) depending on data format
 headers = {
     'Content-Type': builder.get_content_type()
 }
 
-# Send request to server
-logging.info("sending request:\n{0}".format(builder.to_string()))
-con = httplib.HTTPConnection(args.ip, args.port)
-con.request('POST', '', builder.to_string(), headers)
+try:
+    # Send request to server
+    logging.info("sending request:\n{0}".format(builder.to_string()))
+    con = httplib.HTTPConnection(args.ip, args.port)
+    con.request('POST', '', builder.to_string(), headers)
 
-# Get response from server
-r = con.getresponse()
-logging.info('response: {0} ({1})'.format(r.status, r.reason))
-logging.info('Response headers: {}'.format(r.getheaders()))
-resp_data = r.read()
+    # Get response from server
+    r = con.getresponse()
+    if r.status != 200:
+        logging.error('Server returned error: {}: {}'.format(r.status, r.reason))
+        exit(1)
+    
+    logging.info('response: {0} ({1})'.format(r.status, r.reason))
+    logging.info('Response headers: {}'.format(r.getheaders()))
+    resp_data = r.read()
+except socket.error, e:
+    logging.error('Could not send request to server ({}): {}'.format(e.errno, e.strerror))
+    exit(1)
 
 # Read server response using the same data builder
 builder.clear()

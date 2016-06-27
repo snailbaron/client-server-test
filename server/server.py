@@ -1,4 +1,5 @@
-import sys, os, logging, re, time, httplib, ConfigParser, CGIHTTPServer, SocketServer
+import sys, os, logging, re, time, httplib, socket, ConfigParser, CGIHTTPServer, SocketServer
+import errno
 
 # Import module with data builders (common for client and server)
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.path.join('..', 'common')))
@@ -43,22 +44,30 @@ class Handler(CGIHTTPServer.CGIHTTPRequestHandler):
             # 'None'. If requested key is found in a file, 'None' is replaced
             # with corresponding value.
             r = {'md5': 'None', 'name': 'None'}
-            
-            # Search file for MD5 keys        
-            with open(md5_file, 'r') as f_md5:
-                for md5_line in f_md5:
-                    m = re.match(r'^(.*):(.*)$', md5_line)
-                    if m:
-                        if m.group(1) == d['md5']:
-                            r['md5'] = m.group(2)
-                    
-            # Search file for string keys
-            with open(string_file, 'r') as f_str:
-                for str_line in f_str:
-                    m = re.match(r'^(.*):(.*)$', str_line)
-                    if m:
-                        if m.group(1) == d['name']:
-                            r['name'] = m.group(2)
+
+            # Search values for current key pair in requested files            
+            try:
+                # Search file for MD5 keys
+                with open(md5_file, 'r') as f_md5:
+                    for md5_line in f_md5:
+                        m = re.match(r'^(.*):(.*)$', md5_line)
+                        if m:
+                            if m.group(1) == d['md5']:
+                                r['md5'] = m.group(2)
+                        
+                # Search file for string keys
+                with open(string_file, 'r') as f_str:
+                    for str_line in f_str:
+                        m = re.match(r'^(.*):(.*)$', str_line)
+                        if m:
+                            if m.group(1) == d['name']:
+                                r['name'] = m.group(2)
+            except IOError, e:
+                logging.error('Cannot read values file ({}): {}'.format(e.errno, e.strerror))
+                self.send_response(500, 'Internal server error')
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                return
 
             # Add values for current pair of keys to response
             response.append(r)
@@ -84,16 +93,22 @@ class ThreadedServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
 
 
-if __name__ == '__main__':
-    # Read server configuration file
-    config = ConfigParser.RawConfigParser()
-    config.read('server.cfg')
+# Read server configuration file
+config = ConfigParser.RawConfigParser({
+    'port': 2222,
+    'md5_file': 'md5_values.txt',
+    'string_file': 'string_values.txt'
+})
+config.read('server.cfg')
 
-    port = config.getint('core', 'port')
-    md5_file = config.get('core', 'md5_file')
-    string_file = config.get('core', 'string_file')
+port = config.getint('core', 'port')
+md5_file = config.get('core', 'md5_file')
+string_file = config.get('core', 'string_file')
 
+try:
     # Create server, and listen to assigned port forever
     server = ThreadedServer(('', port), Handler)
     print "Serving at port:", port
     server.serve_forever()
+except socket.error, e:
+    logging.error('Cannot create server ({}): {}'.format(errno.errorcode[e.errno], e.strerror))
